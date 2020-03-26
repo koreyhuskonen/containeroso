@@ -11,4 +11,4 @@ client.images.prune(filters={"dangling": False})
 
 client.networks.prune()
 
-client.images.build(path=".", tag="virtuoso", rm=True)
+client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag="virtuoso", rm=True)
