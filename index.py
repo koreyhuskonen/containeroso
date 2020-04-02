@@ -1,5 +1,6 @@
 from flask import Flask, Response, request, jsonify
-from containeroso import createNetwork, destroyNetwork, getSSHPort
+from containeroso import createNetwork, destroyNetwork
+from containeroso import getSSHPort, startContaineroso
 
 app = Flask(__name__)
 
@@ -40,4 +41,5 @@ def status():
     return Response(status=200)
 
 if __name__ == '__main__':
+    startContaineroso()
     app.run(host='0.0.0.0')

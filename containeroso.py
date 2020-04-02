@@ -4,6 +4,10 @@ from logger import info
 import docker
 client = docker.from_env()
 
+def startContaineroso():
+    info(f'Building image "virtuoso" if it does not already exist...')
+    client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag="virtuoso", rm=True)
+
 def createNetwork(n):
     networkId = n["networkId"]
     machines  = n["machines"]

@@ -9,6 +9,8 @@ def info(dbg_message):
     parent = getParentFunction()
     if parent == 'createNetwork':
         color = Fore.CYAN
+    elif parent == 'startContaineroso':
+        color = Fore.GREEN
     else:
         color = Fore.MAGENTA
     print(color + "--| " + dbg_message)

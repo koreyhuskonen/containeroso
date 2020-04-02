@@ -1,6 +1,7 @@
 #!/usr/local/bin/python3
 
-from containeroso import createNetwork, destroyNetwork, getSSHPort
+from containeroso import createNetwork, destroyNetwork
+from containeroso import getSSHPort, startContaineroso
 
 sample_payload = {
     "networkId": "123",
@@ -48,7 +49,7 @@ sample_payload = {
     ]
 }
 
-
+startContaineroso()
 createNetwork(sample_payload)
 port = getSSHPort('123-abc')
 print(f'Machine "123-abc" (networkId-machineId) port 22 is mapped to port {port} on the Docker host')
