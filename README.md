@@ -1,6 +1,6 @@
 To build:
 ```
-docker build -t containeroso -f Dockerfile.containeroso .
+docker build -t containeroso .
 ```
 To run:
 ```
