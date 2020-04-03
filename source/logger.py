@@ -7,10 +7,12 @@ def getParentFunction():
 
 def info(dbg_message):
     parent = getParentFunction()
-    if parent == 'createNetwork':
-        color = Fore.CYAN
-    elif parent == 'startContaineroso':
+    if parent == 'startContaineroso':
         color = Fore.GREEN
+    elif parent == 'createNetwork':
+        color = Fore.CYAN
+    elif parent == 'getSSHPort':
+        color = Fore.YELLOW
     else:
         color = Fore.MAGENTA
     print(color + "--| " + dbg_message)

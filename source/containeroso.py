@@ -5,7 +5,7 @@ import docker
 client = docker.from_env()
 
 def startContaineroso():
-    info(f'Building image "virtuoso" if it does not already exist...')
+    info(f'Building image "virtuoso" if it does not already exist')
     client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag="virtuoso", rm=True)
 
 def createNetwork(n):
@@ -15,7 +15,7 @@ def createNetwork(n):
     info(f'Creating network {networkId}')
     net = client.networks.create(networkId)
 
-    info('Creating machines...')
+    info('Creating machines')
     for m in machines:
         if m["type"] != 'host': 
             continue
@@ -33,7 +33,7 @@ def createNetwork(n):
 def destroyNetwork(networkId):
     net = client.networks.get(networkId)
 
-    info('Removing containers...')
+    info('Removing containers')
     for c in net.containers:
         info(f'  {c.name}')
         c.remove(force=True)
@@ -42,6 +42,7 @@ def destroyNetwork(networkId):
     net.remove()
 
 def getSSHPort(machineId):
-    con = client.containers.get(machineId) 
-    ports = con.ports
-    return ports['22/tcp'][0]['HostPort']
+    ports = client.containers.get(machineId).ports
+    hostPort = ports['22/tcp'][0]['HostPort']
+    info(f'Machine {machineId} listening on port {hostPort} on Docker host')
+    return hostPort
