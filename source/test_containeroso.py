@@ -1,47 +1,54 @@
 #!/usr/local/bin/python3
 
 from containeroso import createNetwork, destroyNetwork
-from containeroso import getSSHPort, startContaineroso
+from containeroso import getSSHPort, startContaineroso, makeId
+from uuid import uuid4
 
+def uuid():
+    return uuid4().hex
+
+switch1Id = uuid()
+switch2Id = uuid()
+router1Id = uuid()
 sample_payload1 = {
-    "networkId": "123",
+    "networkId": uuid(),
     "machines": [
         {
-            "id": "abc",
+            "id": uuid(),
             "type": "host",
             "image": "virtuoso",
             "connectedSwitches": [
-                "sdf"
+                switch1Id
             ],
             "connectedRouters": []
         },
         {
-            "id": "xyz",
+            "id": uuid(),
             "type": "host",
             "image": "virtuoso",
             "connectedSwitches": [
-                "jkl"
+                switch2Id
             ],
             "connectedRouters": []
         },
         {
-            "id": "sdf",
+            "id": switch1Id,
             "type": "switch",
             "connectedSwitches": [],
             "connectedRouters": [
-                "vbn"
+                router1Id
             ]
         },
         {
-            "id": "jkl",
+            "id": switch2Id,
             "type": "switch",
             "connectedSwitches": [],
             "connectedRouters": [
-                "vbn"
+                router1Id
             ]
         },
         {
-            "id": "vbn",
+            "id": router1Id,
             "type": "router",
             "connectedSwitches": [],
             "connectedRouters": []
@@ -65,7 +72,7 @@ sample_payload2 = {
             "type": "host",
             "image": "virtuoso",
             "connectedSwitches": [
-                "jkl"
+                "s1"
             ],
             "connectedRouters": []
         },
@@ -74,7 +81,7 @@ sample_payload2 = {
             "type": "host",
             "image": "virtuoso",
             "connectedSwitches": [
-                "jkl"
+                "j"
             ],
             "connectedRouters": []
         },
@@ -89,13 +96,13 @@ sample_payload2 = {
     ]
 }
 
+def test(payload):
+    startContaineroso()
+    createNetwork(payload)
+    networkId = payload["networkId"]
+    getSSHPort(makeId(networkId, payload["machines"][0]["id"]))
+    #destroyNetwork(networkId)
+
 
 if __name__ == '__main__':
-    startContaineroso()
-    createNetwork(sample_payload1)
-    getSSHPort('123-abc')
-    destroyNetwork('123')
-
-    createNetwork(sample_payload2)
-    getSSHPort('567-xyz')
-    destroyNetwork('567')
+    test(sample_payload1)
