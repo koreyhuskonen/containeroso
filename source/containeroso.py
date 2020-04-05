@@ -19,7 +19,7 @@ def startContaineroso():
     client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag="virtuoso", rm=True)
 
 def makeId(networkId, machineId):
-    return networkId + '-' + machineId
+    return networkId + '_' + machineId
 
 def createNetwork(n):
     networkId = n["networkId"]
@@ -32,7 +32,8 @@ def createNetwork(n):
         if m["type"] == 'router' or m["type"] == 'switch':
             machineId = makeId(networkId, m["id"])
             info(f'  {m["type"]} {machineId}')
-            client.networks.create(machineId, ipam=getIPAM())
+            client.networks.create(machineId, 
+                                   ipam=getIPAM())
 
     for m in machines:
         if m["type"] == 'host': 
@@ -61,13 +62,17 @@ def createNetwork(n):
 
     for m in machines:
         if m["type"] == 'switch':
-            machineId = makeId(networkId, m["id"])
-            switch    = client.networks.get(machineId)
-            routers   = m["connectedRouters"]
+            switchId = makeId(networkId, m["id"])
+            switch   = client.networks.get(switchId)
+            routers  = m["connectedRouters"]
             
-            for routerId in routers:
+            if len(routers) > 0:
+                for routerId in routers:
+                    for con in switch.containers:
+                        client.networks.get(makeId(networkId, routerId)).connect(con)
+
                 for con in switch.containers:
-                    client.networks.get(makeId(networkId, routerId)).connect(con)
+                    switch.disconnect(con)
 
 def destroyNetwork(networkId):
     info('Removing containers')

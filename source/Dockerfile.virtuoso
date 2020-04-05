@@ -1,7 +1,7 @@
 FROM ubuntu:18.04
 
 RUN apt-get update &&\
-    apt-get -y install openssh-server iputils-ping net-tools nmap vim &&\
+    apt-get -y install openssh-server iproute2 iputils-ping dnsutils net-tools nmap vim &&\
     rm -r /var/lib/apt/lists/*
 
 RUN mkdir /var/run/sshd
