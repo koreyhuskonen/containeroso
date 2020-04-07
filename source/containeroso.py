@@ -6,14 +6,7 @@ import docker
 client = docker.from_env()
 cli = docker.APIClient()
 
-subnetGen = ip_network('124.0.0.0/8').subnets(new_prefix=24)
-
-def getIPAM():
-    sub = next(subnetGen)
-    gate = next(sub.hosts())
-    pool = docker.types.IPAMPool(subnet=str(sub), gateway=str(gate))
-    ipam_config = docker.types.IPAMConfig(pool_configs=[pool])
-    return ipam_config
+subnets = ip_network('124.0.0.0/8').subnets(new_prefix=24)
 
 def startContaineroso():
     info(f'Building image "virtuoso" if it does not already exist')
@@ -21,6 +14,13 @@ def startContaineroso():
 
 def makeId(networkId, machineId):
     return networkId + '_' + machineId
+
+def getIPAM():
+    sub = next(subnets)
+    gate = next(sub.hosts())
+    pool = docker.types.IPAMPool(subnet=str(sub), gateway=str(gate))
+    ipam_config = docker.types.IPAMConfig(pool_configs=[pool])
+    return ipam_config
 
 def createNetwork(n):
     networkId = n["networkId"]
@@ -33,29 +33,27 @@ def createNetwork(n):
         if m["type"] == 'router' or m["type"] == 'switch':
             machineId = makeId(networkId, m["id"])
             info(f'  {m["type"]} {machineId}')
-            client.networks.create(machineId, 
-                                   ipam=getIPAM())
+            client.networks.create(machineId, ipam=getIPAM())
 
     for m in machines:
         if m["type"] == 'host': 
             machineId = makeId(networkId, m["id"])
             info(f'  host {machineId}')
-            c = cli.create_container(
-                    m["image"], 
-                    name=machineId,
-                    ports=[22],
-                    host_config=cli.create_host_config(port_bindings={22: None})
-                )
-            containerId = c.get('Id')
+            cli.create_container(
+                m["image"], 
+                name=machineId,
+                ports=[22],
+                host_config=cli.create_host_config(port_bindings={22: None})
+            )
             
-            connectors = m["connectedSwitches"] + m["connectedRouters"]
+            connected = m["connectedSwitches"] + m["connectedRouters"]
 
-            if len(connectors) == 0:
+            if len(connected) == 0:
                 continue
 
-            for connectorId in connectors:
-                net = client.networks.get(makeId(networkId, connectorId))
-                net.connect(containerId)
+            for connectedId in connected:
+                net = client.networks.get(makeId(networkId, connectedId))
+                net.connect(machineId, aliases=[m["id"]])
 
             # Disconnect from Docker default bridge
             client.networks.list(names="bridge")[0].disconnect(machineId)
