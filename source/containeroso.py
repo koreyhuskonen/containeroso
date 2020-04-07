@@ -4,11 +4,12 @@ from logger import info
 from ipaddress import ip_network
 import docker
 client = docker.from_env()
+cli = docker.APIClient()
 
 subnetGen = ip_network('124.0.0.0/8').subnets(new_prefix=24)
 
 def getIPAM():
-    sub  = next(subnetGen)
+    sub = next(subnetGen)
     gate = next(sub.hosts())
     pool = docker.types.IPAMPool(subnet=str(sub), gateway=str(gate))
     ipam_config = docker.types.IPAMConfig(pool_configs=[pool])
@@ -39,23 +40,22 @@ def createNetwork(n):
         if m["type"] == 'host': 
             machineId = makeId(networkId, m["id"])
             info(f'  host {machineId}')
-            client.containers.run(m["image"],
-                                  name=machineId,
-                                  detach=True,
-                                  auto_remove=True,
-                                  ports={'22/tcp': None})
+            c = cli.create_container(
+                    m["image"], 
+                    name=machineId,
+                    ports=[22],
+                    host_config=cli.create_host_config(port_bindings={22: None})
+                )
+            containerId = c.get('Id')
             
-            switches = m["connectedSwitches"]
-            routers  = m["connectedRouters"]
+            connectors = m["connectedSwitches"] + m["connectedRouters"]
 
-            if len(switches) == 0 and len(routers) == 0:
+            if len(connectors) == 0:
                 continue
 
-            for switchId in switches:
-                client.networks.get(makeId(networkId, switchId)).connect(machineId)
-            
-            for routerId in routers:
-                client.networks.get(makeId(networkId, routerId)).connect(machineId)
+            for connectorId in connectors:
+                net = client.networks.get(makeId(networkId, connectorId))
+                net.connect(containerId)
 
             # Disconnect from Docker default bridge
             client.networks.list(names="bridge")[0].disconnect(machineId)
@@ -63,17 +63,22 @@ def createNetwork(n):
     for m in machines:
         if m["type"] == 'switch':
             switchId = makeId(networkId, m["id"])
-            switch   = client.networks.get(switchId)
-            routers  = m["connectedRouters"]
+            switch = client.networks.get(switchId)
+            routers = m["connectedRouters"]
             
             if len(routers) > 0:
                 for routerId in routers:
                     for con in switch.containers:
-                        client.networks.get(makeId(networkId, routerId)).connect(con)
+                        net = client.networks.get(makeId(networkId, routerId))
+                        net.connect(con, aliases=[con.name.split('_')[1]])
 
                 for con in switch.containers:
                     switch.disconnect(con)
 
+    for m in machines:
+        if m["type"] == 'host':
+            cli.start(makeId(networkId, m["id"]))
+            
 def destroyNetwork(networkId):
     info('Removing containers')
     for c in client.containers.list(filters={"name": networkId}):
