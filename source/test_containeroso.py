@@ -56,46 +56,6 @@ sample_payload1 = {
     ]
 }
 
-sample_payload2 = {
-    "networkId": "567",
-    "machines": [
-        # This machine is not connected to anything
-        {
-            "id": "abc",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [],
-            "connectedRouters": []
-        },
-        {
-            "id": "nop",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "s1"
-            ],
-            "connectedRouters": []
-        },
-        {
-            "id": "xyz",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "j"
-            ],
-            "connectedRouters": []
-        },
-        {
-            "id": "jkl",
-            "type": "switch",
-            "connectedSwitches": [],
-            "connectedRouters": [
-                "vbn"
-            ]
-        },
-    ]
-}
-
 def test(payload):
     startContaineroso()
     createNetwork(payload)

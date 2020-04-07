@@ -58,6 +58,9 @@ def createNetwork(n):
             # Disconnect from Docker default bridge
             client.networks.list(names="bridge")[0].disconnect(machineId)
 
+            # Start container
+            cli.start(machineId)
+
     for m in machines:
         if m["type"] == 'switch':
             switchId = makeId(networkId, m["id"])
@@ -75,7 +78,7 @@ def createNetwork(n):
 
     for m in machines:
         if m["type"] == 'host':
-            cli.start(makeId(networkId, m["id"]))
+            cli.restart(makeId(networkId, m["id"]))
             
 def destroyNetwork(networkId):
     info('Removing containers')
