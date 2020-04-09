@@ -30,7 +30,9 @@ test_payload1 = {
         {   
             "id": switch1Id,
             "type": "switch",
-            "connectedSwitches": [], 
+            "connectedSwitches": [
+                switch2Id
+            ], 
             "connectedRouters": [
                 router1Id
             ]   
@@ -38,7 +40,9 @@ test_payload1 = {
         {   
             "id": switch2Id,
             "type": "switch",
-            "connectedSwitches": [], 
+            "connectedSwitches": [
+                switch1Id
+            ], 
             "connectedRouters": [
                 router1Id
             ]   
@@ -46,7 +50,10 @@ test_payload1 = {
         {
             "id": router1Id,
             "type": "router",
-            "connectedSwitches": [],
+            "connectedSwitches": [
+                switch1Id,
+                switch2Id
+            ],
             "connectedRouters": []
         }
     ]

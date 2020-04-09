@@ -37,40 +37,50 @@ def createNetwork(n):
     
     for host in hosts:
         hostId = makeId(networkId, host["id"])
+        info(f'  host {hostId}')
         client.containers.create(image=host["image"],
                                  name=hostId,
                                  detach=True,
+                                 network_mode=None,
                                  ports={'22/tcp': None})
 
-        if len(host["connectedSwitches"] + host["connectedRouters"]) > 0:
-            client.networks.list(names="bridge")[0].disconnect(hostId)
-
     for router in routers:
-        routerId = makeId(networkId, host["id"])
-        net = client.networks.create(name=routerId, ipam=getIPAM())
+        routerId = makeId(networkId, router["id"])
+        info(f'  router {routerId}')
+        hostsConnectedToThisRouter = set()
         for host in hosts:
+            # Hosts directly connected to the router
             if router["id"] in host["connectedRouters"]:
-                net.connect(makeId(networkId, host["id"]), aliases=[host["id"]])
-        for switch in switches:
-            if router["id"] in switch["connectedRouters"]:
-                switchesConnectedToThisRouter = getConnectedSwitches(switches, switch["id"])
-                switchesConnectedToRouters |= set(switchesConnectedToThisRouter)
-                for switchId in switchesConnectedToThisRouter:
-                    for s in switches:
-                        if s["id"] == switchId:
-                            for host in hosts:
-                                if s["id"] in host["connectedSwitches"]:
-                                    net.connect(makeId(networkId, host["id"]), aliases=[host["id"]])
+                hostsConnectedToThisRouter.add(host["id"])
+        for switchId in router["connectedSwitches"]:
+            switchesConnectedToThisSwitch = getConnectedSwitches(switches, switchId)
+            switchesConnectedToRouters |= set(switchesConnectedToThisSwitch)
+            for switchId in switchesConnectedToThisSwitch:
+                for host in hosts:
+                    if switchId in host["connectedSwitches"]:
+                        # Hosts connected to a switch with a path to the router
+                        hostsConnectedToThisRouter.add(host["id"])
+        
+        net = client.networks.create(name=routerId, ipam=getIPAM())
+        for hostId in hostsConnectedToThisRouter:
+            info(f'    connect {hostId}') 
+            net.connect(makeId(networkId, hostId), aliases=[hostId])
+
+        for routerId in router["connectedRouters"]:
+            # TODO add links between routers
+            pass
 
     for switch in switches:
         switchId = switch["id"]
         if switchId not in switchesConnectedToRouters:
+            info(f'  switch {switchId}')
             net = client.networks.create(name=switchId, ipam=getIPAM())
             for host in hosts:
                 if switchId in host["connectedSwitches"]:
+                    info(f'    connect {host["id"]}') 
                     net.connect(makeId(networkId, host["id"]), aliases=[host["id"]])
             for connectedSwitch in switch["connectedSwitches"]:
-                # TODO add link using pipework
+                # TODO add links between switches
                 pass
      
     for host in hosts:
