@@ -1,5 +1,6 @@
 #!/usr/local/bin/python3
 
+from collections import deque
 from logger import info
 from ipaddress import ip_network
 import docker
@@ -28,57 +29,66 @@ def createNetwork(n):
 
     machines = n["machines"]
     info('Creating machines')
+    
+    hosts    = [m for m in machines if m["type"] == 'host']
+    switches = [m for m in machines if m["type"] == 'switch']
+    routers  = [m for m in machines if m["type"] == 'router']
+    switchesConnectedToRouters = set()
+    
+    for host in hosts:
+        hostId = makeId(networkId, host["id"])
+        client.containers.create(image=host["image"],
+                                 name=hostId,
+                                 detach=True,
+                                 ports={'22/tcp': None})
 
-    for m in machines:
-        if m["type"] == 'router' or m["type"] == 'switch':
-            machineId = makeId(networkId, m["id"])
-            info(f'  {m["type"]} {machineId}')
-            client.networks.create(machineId, ipam=getIPAM())
+        if len(host["connectedSwitches"] + host["connectedRouters"]) > 0:
+            client.networks.list(names="bridge")[0].disconnect(hostId)
 
-    for m in machines:
-        if m["type"] == 'host': 
-            machineId = makeId(networkId, m["id"])
-            info(f'  host {machineId}')
-            cli.create_container(
-                m["image"], 
-                name=machineId,
-                ports=[22],
-                host_config=cli.create_host_config(port_bindings={22: None})
-            )
-            
-            connected = m["connectedSwitches"] + m["connectedRouters"]
+    for router in routers:
+        routerId = makeId(networkId, host["id"])
+        net = client.networks.create(name=routerId, ipam=getIPAM())
+        for host in hosts:
+            if router["id"] in host["connectedRouters"]:
+                net.connect(makeId(networkId, host["id"]), aliases=[host["id"]])
+        for switch in switches:
+            if router["id"] in switch["connectedRouters"]:
+                switchesConnectedToThisRouter = getConnectedSwitches(switches, switch["id"])
+                switchesConnectedToRouters |= set(switchesConnectedToThisRouter)
+                for switchId in switchesConnectedToThisRouter:
+                    for s in switches:
+                        if s["id"] == switchId:
+                            for host in hosts:
+                                if s["id"] in host["connectedSwitches"]:
+                                    net.connect(makeId(networkId, host["id"]), aliases=[host["id"]])
 
-            if len(connected) == 0:
-                continue
+    for switch in switches:
+        switchId = switch["id"]
+        if switchId not in switchesConnectedToRouters:
+            net = client.networks.create(name=switchId, ipam=getIPAM())
+            for host in hosts:
+                if switchId in host["connectedSwitches"]:
+                    net.connect(makeId(networkId, host["id"]), aliases=[host["id"]])
+            for connectedSwitch in switch["connectedSwitches"]:
+                # TODO add link using pipework
+                pass
+     
+    for host in hosts:
+        cli.start(makeId(networkId, host["id"]))
+           
+def getConnectedSwitches(switches, src):
+    queue = deque([src])
+    visited = []
+    while(queue):
+        nextSwitch = queue.popleft()
+        if nextSwitch not in visited:
+            visited.append(nextSwitch)
+            for switch in switches:
+                if switch["id"] == nextSwitch:
+                    connectedSwitches = switch["connectedSwitches"]
+                    queue += deque(connectedSwitches)
 
-            for connectedId in connected:
-                net = client.networks.get(makeId(networkId, connectedId))
-                net.connect(machineId, aliases=[m["id"]])
-
-            # Disconnect from Docker default bridge
-            client.networks.list(names="bridge")[0].disconnect(machineId)
-
-            # Start container
-            cli.start(machineId)
-
-    for m in machines:
-        if m["type"] == 'switch':
-            switchId = makeId(networkId, m["id"])
-            switch = client.networks.get(switchId)
-            routers = m["connectedRouters"]
-            
-            if len(routers) > 0:
-                for routerId in routers:
-                    for con in switch.containers:
-                        net = client.networks.get(makeId(networkId, routerId))
-                        net.connect(con, aliases=[con.name.split('_')[1]])
-
-                for con in switch.containers:
-                    switch.disconnect(con)
-
-    for m in machines:
-        if m["type"] == 'host':
-            cli.restart(makeId(networkId, m["id"]))
+    return visited
             
 def destroyNetwork(networkId):
     info('Removing containers')
