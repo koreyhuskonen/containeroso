@@ -4,7 +4,7 @@ import docker
 import paramiko
 from itertools import combinations
 from containeroso import createNetwork, destroyNetwork, getConnectedSwitches
-from containeroso import getSSHPort, startContaineroso, makeId
+from containeroso import getSSHPort, startContaineroso
 from collections import defaultdict
 from logger import info
 from test_payload import *
@@ -29,17 +29,16 @@ def testConnections(p):
     
     # Test remote access to each host
     for host in hosts:
-        hostId = host["id"]
-        port = getSSHPort(makeId(networkId, hostId))
+        port = getSSHPort(host["id"])
         testSSH(port)
-        info(f'ssh -> {hostId} ({port}) OK')
+        info(f'ssh -> {host["id"]} ({port}) OK')
     
     for router in routers:
-        routerId = makeId(networkId, router["id"])
-        info(f'Testing hosts on router {router["id"]}')
+        routerId = router["id"]
+        info(f'Testing hosts on router {routerId}')
         hostsConnectedToThisRouter = set()
         for host in hosts:
-            if router["id"] in host["connectedRouters"]:
+            if routerId in host["connectedRouters"]:
                 hostsConnectedToThisRouter.add(host["id"])
         for switchId in router["connectedSwitches"]:
             switchesConnectedToThisSwitch = getConnectedSwitches(switches, switchId)
@@ -49,7 +48,7 @@ def testConnections(p):
                     if switchId in host["connectedSwitches"]:
                         hostsConnectedToThisRouter.add(host["id"])
 
-        testHostConnections(networkId, routerId, hostsConnectedToThisRouter)
+        testHostConnections(routerId, hostsConnectedToThisRouter)
 
     for switch in switches:
         switchId = switch["id"]
@@ -58,28 +57,28 @@ def testConnections(p):
             hostsConnectedToThisSwitch = [host["id"] for host in hosts \
                                             if switchId in host["connectedSwitches"]]
 
-            testHostConnections(networkId, makeId(networkId, switchId), hostsConnectedToThisSwitch)
+            testHostConnections(switchId, hostsConnectedToThisSwitch)
 
 
-def testHostConnections(networkId, networkCenter, hosts):
+def testHostConnections(dockerNetworkId, hosts):
     for pair in combinations(hosts, 2):
-        testPairConnection(networkId, networkCenter, *pair)
+        testPairConnection(dockerNetworkId, *pair)
     
-def testPairConnection(networkId, networkCenter, id1, id2):
-    nslookup(networkId, id1, id2)
-    ping(networkId, networkCenter, id1, id2)
+def testPairConnection(dockerNetworkId, id1, id2):
+    nslookup(id1, id2)
+    ping(dockerNetworkId, id1, id2)
 
-def nslookup(networkId, id1, id2):
-    con = cli.containers.get(makeId(networkId, id1))
+def nslookup(id1, id2):
+    con = cli.containers.get(id1)
     assert con.exec_run(f'nslookup {id2}').exit_code == 0
-    info(f'  nslookup {id1} -> {id2}')
+    info(f'  nslookup {id1} -> {id2} OK')
    
-def ping(networkId, networkCenter, id1, id2):
-    con = cli.containers.get(makeId(networkId, id1))
-    con2 = cli.containers.get(makeId(networkId, id2))
-    ip = con2.attrs["NetworkSettings"]["Networks"][networkCenter]["IPAddress"]
+def ping(dockerNetworkId, id1, id2):
+    con = cli.containers.get(id1)
+    con2 = cli.containers.get(id2)
+    ip = con2.attrs["NetworkSettings"]["Networks"][dockerNetworkId]["IPAddress"]
     assert con.exec_run(f'ping -c1 {ip}').exit_code == 0
-    info(f'  ping {id1} -> {id2} ({ip})')
+    info(f'  ping {id1} -> {id2} ({ip}) OK')
 
 def testSSH(port):
     ssh.connect('localhost', port=port, username='virtuoso', password='password')        

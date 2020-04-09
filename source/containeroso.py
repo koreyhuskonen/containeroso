@@ -13,9 +13,6 @@ def startContaineroso():
     info(f'Building image "virtuoso" if it does not already exist')
     client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag="virtuoso", rm=True)
 
-def makeId(networkId, machineId):
-    return networkId + '_' + machineId
-
 def getIPAM():
     sub = next(subnets)
     gate = next(sub.hosts())
@@ -36,17 +33,19 @@ def createNetwork(n):
     switchesConnectedToRouters = set()
     
     for host in hosts:
-        hostId = makeId(networkId, host["id"])
-        info(f'  host {hostId}')
+        info(f'  host {host["id"]}')
         client.containers.create(image=host["image"],
-                                 name=hostId,
+                                 name=host["id"],
                                  detach=True,
-                                 network_mode=None,
+                                 labels={networkId: ""},
                                  ports={'22/tcp': None})
 
+        if len(host["connectedSwitches"] + host["connectedRouters"]) > 0:
+            # Disconnect from Docker default bridge
+            client.networks.list(names="bridge")[0].disconnect(host["id"])
+
     for router in routers:
-        routerId = makeId(networkId, router["id"])
-        info(f'  router {routerId}')
+        info(f'  router {router["id"]}')
         hostsConnectedToThisRouter = set()
         for host in hosts:
             # Hosts directly connected to the router
@@ -61,10 +60,12 @@ def createNetwork(n):
                         # Hosts connected to a switch with a path to the router
                         hostsConnectedToThisRouter.add(host["id"])
         
-        net = client.networks.create(name=routerId, ipam=getIPAM())
+        net = client.networks.create(name=router["id"], 
+                                     ipam=getIPAM(),
+                                     labels={networkId: ""})
         for hostId in hostsConnectedToThisRouter:
             info(f'    connect {hostId}') 
-            net.connect(makeId(networkId, hostId), aliases=[hostId])
+            net.connect(hostId, aliases=[hostId])
 
         for routerId in router["connectedRouters"]:
             # TODO add links between routers
@@ -74,17 +75,19 @@ def createNetwork(n):
         switchId = switch["id"]
         if switchId not in switchesConnectedToRouters:
             info(f'  switch {switchId}')
-            net = client.networks.create(name=switchId, ipam=getIPAM())
+            net = client.networks.create(name=switchId, 
+                                         ipam=getIPAM(),
+                                         labels={networkId: ""})
             for host in hosts:
                 if switchId in host["connectedSwitches"]:
                     info(f'    connect {host["id"]}') 
-                    net.connect(makeId(networkId, host["id"]), aliases=[host["id"]])
+                    net.connect(host["id"], aliases=[host["id"]])
             for connectedSwitch in switch["connectedSwitches"]:
                 # TODO add links between switches
                 pass
      
     for host in hosts:
-        cli.start(makeId(networkId, host["id"]))
+        cli.start(host["id"])
            
 def getConnectedSwitches(switches, src):
     queue = deque([src])
@@ -102,12 +105,12 @@ def getConnectedSwitches(switches, src):
             
 def destroyNetwork(networkId):
     info('Removing containers')
-    for c in client.containers.list(filters={"name": networkId}):
+    for c in client.containers.list(filters={"label": networkId}):
         info(f'  {c.name}')
         c.remove(force=True)
 
     info(f'Removing networks')
-    for n in client.networks.list(names=networkId):
+    for n in client.networks.list(filters={"label": networkId}):
         info(f'  {n.name}')
         n.remove()
 
