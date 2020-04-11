@@ -7,7 +7,7 @@ import docker
 client = docker.from_env()
 cli = docker.APIClient()
 
-subnets = ip_network('124.0.0.0/8').subnets(new_prefix=24)
+subnets = ip_network('192.168.0.0/16').subnets(new_prefix=24)
 
 def startContaineroso():
     info(f'Building image "virtuoso" if it does not already exist')
