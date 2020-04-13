@@ -36,7 +36,7 @@ def testConnections(p):
     for router in routers:
         routerId = router["id"]
         info(f'Testing hosts on router {routerId}')
-        hostsConnectedToRouter, switchesConnectedToRouter = getHostsConnectedToRouter(hosts, switches, routerId)
+        hostsConnectedToRouter, switchesConnectedToRouter = getHostsConnectedToRouter(hosts, switches+routers, routerId)
         visitedSwitches |= set(switchesConnectedToRouter)
         testHostConnections(routerId, hostsConnectedToRouter)
 

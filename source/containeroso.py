@@ -24,16 +24,15 @@ def createNetwork(n):
     HostToRouter = dict()
     visitedSwitches = set()
     
+    createVirtualHosts(networkId, hosts)
+
     for router in routers:
         createVirtualNetwork(networkId, router["id"])
-    
-    for host in hosts:
-        createVirtualHost(networkId, host)
 
     for router in routers:
         routerId = router["id"]
         info(f'  router {routerId}')
-        hostsConnectedToRouter, switchesConnectedToRouter = getHostsConnectedToRouter(hosts, switches, routerId)
+        hostsConnectedToRouter, switchesConnectedToRouter = getHostsConnectedToRouter(hosts, switches+routers, routerId)
         visitedSwitches |= set(switchesConnectedToRouter)
         for hostId in hostsConnectedToRouter:
             if hostId in HostToRouter:
@@ -51,7 +50,10 @@ def createNetwork(n):
             visitedSwitches |= set(switchesConnectedToSwitch)
             createVirtualNetwork(networkId, switchId)
             connectHostsToDevice(hostsConnectedToSwitch, switchId)
-     
+
+    restartHostsAndSetDefaultGateway(hosts, HostToRouter)
+
+def restartHostsAndSetDefaultGateway(hosts, HostToRouter):
     for host in hosts:
         hostId = host["id"]
         con = client.containers.get(hostId)
@@ -66,6 +68,7 @@ def createNetwork(n):
 def connectHostsToDevice(hostIds, deviceId):
     net = client.networks.get(deviceId)
     for hostId in hostIds:
+        info(f'    connect {hostId}')
         net.connect(hostId, aliases=[hostId])
 
 def getHostsConnectedToRouter(hosts, switches, routerId):
@@ -106,7 +109,11 @@ def createVirtualGateway(networkId, routers, routerId):
         net.connect(gateway)
         gateway.exec_run(f"iptables -A FORWARD -i eth{i+1} -o eth0 -j ACCEPT")
         gateway.exec_run(f"iptables -A FORWARD -i eth0 -o eth{i+1} -m state --state RELATED,ESTABLISHED -j ACCEPT")
-    
+
+def createVirtualHosts(networkId, hosts):
+    for host in hosts:
+        createVirtualHost(networkId, host)
+
 def createVirtualHost(networkId, host):
     con = client.containers.run(image=host["image"],
                                 name=host["id"],
