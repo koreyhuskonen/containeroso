@@ -3,9 +3,9 @@
 import docker
 import paramiko
 from itertools import combinations
-from containeroso import createNetwork, destroyNetwork, getConnectedSwitches
-from containeroso import getSSHPort, startContaineroso
 from collections import defaultdict
+
+from containeroso import *
 from logger import info
 from test_payload import *
 
@@ -25,7 +25,7 @@ def testConnections(p):
     hosts    = [m for m in p["machines"] if m["type"] == 'host']
     switches = [m for m in p["machines"] if m["type"] == 'switch']
     routers  = [m for m in p["machines"] if m["type"] == 'router']
-    switchesConnectedToRouters = set()
+    visitedSwitches = set()
     
     # Test remote access to each host
     for host in hosts:
@@ -36,29 +36,17 @@ def testConnections(p):
     for router in routers:
         routerId = router["id"]
         info(f'Testing hosts on router {routerId}')
-        hostsConnectedToThisRouter = set()
-        for host in hosts:
-            if routerId in host["connectedRouters"]:
-                hostsConnectedToThisRouter.add(host["id"])
-        for switchId in router["connectedSwitches"]:
-            switchesConnectedToThisSwitch = getConnectedSwitches(switches, switchId)
-            switchesConnectedToRouters |= set(switchesConnectedToThisSwitch)
-            for switchId in switchesConnectedToThisSwitch:
-                for host in hosts:
-                    if switchId in host["connectedSwitches"]:
-                        hostsConnectedToThisRouter.add(host["id"])
-
-        testHostConnections(routerId, hostsConnectedToThisRouter)
+        hostsConnectedToRouter, switchesConnectedToRouter = getHostsConnectedToRouter(hosts, switches, routerId)
+        visitedSwitches |= set(switchesConnectedToRouter)
+        testHostConnections(routerId, hostsConnectedToRouter)
 
     for switch in switches:
         switchId = switch["id"]
-        if switchId not in switchesConnectedToRouters:
+        if switchId not in visitedSwitches:
             info(f'Testing hosts on switch {switchId}')
-            hostsConnectedToThisSwitch = [host["id"] for host in hosts \
-                                            if switchId in host["connectedSwitches"]]
-
-            testHostConnections(switchId, hostsConnectedToThisSwitch)
-
+            hostsConnectedToSwitch, switchesConnectedToSwitch = getHostsConnectedToSwitch(hosts, switches, switchId)
+            visitedSwitches |= set(switchesConnectedToSwitch)
+            testHostConnections(switchId, hostsConnectedToSwitch)
 
 def testHostConnections(dockerNetworkId, hosts):
     for pair in combinations(hosts, 2):

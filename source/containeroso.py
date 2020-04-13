@@ -5,20 +5,11 @@ from logger import info
 from ipaddress import ip_network
 import docker
 client = docker.from_env()
-cli = docker.APIClient()
-
-subnets = ip_network('192.168.0.0/16').subnets(new_prefix=24)
 
 def startContaineroso():
+    # TODO rename this to build images, what it actually does 
     info(f'Building image "virtuoso" if it does not already exist')
     client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag="virtuoso", rm=True)
-
-def getIPAM():
-    sub = next(subnets)
-    gate = next(sub.hosts())
-    pool = docker.types.IPAMPool(subnet=str(sub), gateway=str(gate))
-    ipam_config = docker.types.IPAMConfig(pool_configs=[pool])
-    return ipam_config
 
 def createNetwork(n):
     networkId = n["networkId"]
@@ -30,76 +21,124 @@ def createNetwork(n):
     hosts    = [m for m in machines if m["type"] == 'host']
     switches = [m for m in machines if m["type"] == 'switch']
     routers  = [m for m in machines if m["type"] == 'router']
-    switchesConnectedToRouters = set()
+    HostToRouter = dict()
+    visitedSwitches = set()
+    
+    for router in routers:
+        createVirtualNetwork(networkId, router["id"])
     
     for host in hosts:
-        info(f'  host {host["id"]}')
-        client.containers.create(image=host["image"],
-                                 name=host["id"],
-                                 detach=True,
-                                 labels={networkId: ""},
-                                 ports={'22/tcp': None})
-
-        if len(host["connectedSwitches"] + host["connectedRouters"]) > 0:
-            # Disconnect from Docker default bridge
-            client.networks.list(names="bridge")[0].disconnect(host["id"])
+        createVirtualHost(networkId, host)
 
     for router in routers:
-        info(f'  router {router["id"]}')
-        hostsConnectedToThisRouter = set()
-        for host in hosts:
-            # Hosts directly connected to the router
-            if router["id"] in host["connectedRouters"]:
-                hostsConnectedToThisRouter.add(host["id"])
-        for switchId in router["connectedSwitches"]:
-            switchesConnectedToThisSwitch = getConnectedSwitches(switches, switchId)
-            switchesConnectedToRouters |= set(switchesConnectedToThisSwitch)
-            for switchId in switchesConnectedToThisSwitch:
-                for host in hosts:
-                    if switchId in host["connectedSwitches"]:
-                        # Hosts connected to a switch with a path to the router
-                        hostsConnectedToThisRouter.add(host["id"])
-        
-        net = client.networks.create(name=router["id"], 
-                                     ipam=getIPAM(),
-                                     labels={networkId: ""})
-        for hostId in hostsConnectedToThisRouter:
-            info(f'    connect {hostId}') 
-            net.connect(hostId, aliases=[hostId])
-
-        for routerId in router["connectedRouters"]:
-            # TODO add links between routers
-            pass
+        routerId = router["id"]
+        info(f'  router {routerId}')
+        hostsConnectedToRouter, switchesConnectedToRouter = getHostsConnectedToRouter(hosts, switches, routerId)
+        visitedSwitches |= set(switchesConnectedToRouter)
+        for hostId in hostsConnectedToRouter:
+            if hostId in HostToRouter:
+                raise AppError("Host {hostId} is connected to more than 1 router")
+            HostToRouter[hostId] = routerId
+        # Must create the gateway before connecting devices
+        createVirtualGateway(networkId, routers, routerId)
+        connectHostsToDevice(hostsConnectedToRouter, routerId)
 
     for switch in switches:
         switchId = switch["id"]
-        if switchId not in switchesConnectedToRouters:
+        if switchId not in visitedSwitches:
             info(f'  switch {switchId}')
-            net = client.networks.create(name=switchId, 
-                                         ipam=getIPAM(),
-                                         labels={networkId: ""})
-            for host in hosts:
-                if switchId in host["connectedSwitches"]:
-                    info(f'    connect {host["id"]}') 
-                    net.connect(host["id"], aliases=[host["id"]])
-            for connectedSwitch in switch["connectedSwitches"]:
-                # TODO add links between switches
-                pass
+            hostsConnectedToSwitch, switchesConnectedToSwitch = getHostsConnectedToSwitch(hosts, switches, switchId)
+            visitedSwitches |= set(switchesConnectedToSwitch)
+            createVirtualNetwork(networkId, switchId)
+            connectHostsToDevice(hostsConnectedToSwitch, switchId)
      
     for host in hosts:
-        cli.start(host["id"])
-           
-def getConnectedSwitches(switches, src):
-    queue = deque([src])
+        hostId = host["id"]
+        con = client.containers.get(hostId)
+        con.restart()
+        if hostId in HostToRouter:
+            routerId = HostToRouter[hostId]
+            gateway = client.containers.get(routerId)
+            gatewayIP = gateway.attrs["NetworkSettings"]["Networks"][routerId]["IPAddress"]
+            con.exec_run("ip route del default")
+            con.exec_run(f"ip route add default via {gatewayIP}")
+
+def connectHostsToDevice(hostIds, deviceId):
+    net = client.networks.get(deviceId)
+    for hostId in hostIds:
+        net.connect(hostId, aliases=[hostId])
+
+def getHostsConnectedToRouter(hosts, switches, routerId):
+    hostsConnectedToRouter, switchesConnectedToRouter = getHostsConnectedToSwitch(hosts, switches, routerId)
+    hostsConnectedToRouter |= getHostsDirectlyConnectedTo(hosts, routerId, "Routers")
+    return hostsConnectedToRouter, switchesConnectedToRouter[1:]
+
+def getHostsDirectlyConnectedTo(hosts, deviceId, deviceType):
+    hostsDirectlyConnected = set()
+    for host in hosts:
+        if deviceId in host[f"connected{deviceType}"]:
+            hostsDirectlyConnected.add(host["id"])
+    return hostsDirectlyConnected
+
+def getHostsConnectedToSwitch(hosts, switches, switchId):
+    hostsConnectedToSwitch = set()
+    switchesConnectedToSwitch = getConnectedDevices(switches, switchId, "Switches")
+    for connectedSwitchId in switchesConnectedToSwitch:
+        hostsConnectedToSwitch |= getHostsDirectlyConnectedTo(hosts, connectedSwitchId, "Switches")
+    return hostsConnectedToSwitch, switchesConnectedToSwitch
+
+def createVirtualNetwork(networkId, deviceId):
+    return client.networks.create(name=deviceId, 
+                                  ipam=getIPAM(),
+                                  labels={networkId: ""})
+
+def createVirtualGateway(networkId, routers, routerId):
+    gateway = client.containers.run(image="virtuoso",
+                                    name=routerId,
+                                    network=routerId,
+                                    detach=True,
+                                    privileged=True,
+                                    labels={networkId: ""})
+    gateway.exec_run("iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE")
+    routersConnectedToThisRouter = getConnectedDevices(routers, routerId, "Routers")
+    for i, connectedRouterId in enumerate(routersConnectedToThisRouter[1:]):
+        net = client.networks.get(connectedRouterId)
+        net.connect(gateway)
+        gateway.exec_run(f"iptables -A FORWARD -i eth{i+1} -o eth0 -j ACCEPT")
+        gateway.exec_run(f"iptables -A FORWARD -i eth0 -o eth{i+1} -m state --state RELATED,ESTABLISHED -j ACCEPT")
+    
+def createVirtualHost(networkId, host):
+    con = client.containers.run(image=host["image"],
+                                name=host["id"],
+                                detach=True,
+                                privileged=True,
+                                labels={networkId: ""},
+                                ports={'22/tcp': None})
+    
+    if len(host["connectedSwitches"] + host["connectedRouters"]) > 0:
+        # Disconnect from Docker default bridge
+        client.networks.list(names="bridge")[0].disconnect(con)
+
+subnet = ip_network('192.168.0.0/16').subnets(new_prefix=24)
+
+def getIPAM():
+    sub = next(subnet)
+    gate = next(sub.hosts())
+    pool = docker.types.IPAMPool(subnet=str(sub), gateway=str(gate)) 
+    ipam_config = docker.types.IPAMConfig(pool_configs=[pool])
+    return ipam_config
+
+def getConnectedDevices(devices, srcId, deviceType):
+    queue = deque([srcId])
     visited = []
     while(queue):
-        nextSwitch = queue.popleft()
-        if nextSwitch not in visited:
-            visited.append(nextSwitch)
-            for switch in switches:
-                if switch["id"] == nextSwitch:
-                    connectedSwitches = switch["connectedSwitches"]
-                    queue += deque(connectedSwitches)
+        deviceId = queue.popleft()
+        if deviceId not in visited:
+            visited.append(deviceId)
+            for device in devices:
+                if deviceId == device["id"]:
+                    connectedDevices = device[f"connected{deviceType}"]
+                    queue += deque(connectedDevices)
 
     return visited
             
@@ -117,5 +156,9 @@ def destroyNetwork(networkId):
 def getSSHPort(machineId):
     ports = client.containers.get(machineId).ports
     hostPort = ports['22/tcp'][0]['HostPort']
-    info(f'Machine {machineId} listening on port {hostPort}')
     return hostPort
+
+class AppError(Exception):
+    def __init__(self, message):
+        self.message = message
+
