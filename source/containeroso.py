@@ -6,9 +6,9 @@ from ipaddress import ip_network
 import docker
 client = docker.from_env()
 
-def buildImages():
-    info(f'Building image "virtuoso" if it does not already exist')
-    client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag="virtuoso", rm=True)
+def buildImage(name="virtuoso"):
+    info(f'Building image {name}')
+    client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag=name, rm=True)
 
 def createNetwork(n):
     networkId = n["networkId"]

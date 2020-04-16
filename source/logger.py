@@ -12,8 +12,8 @@ def info(dbg_message):
         color = Fore.CYAN
     elif 'destroyNetwork' in stack:
         color = Fore.MAGENTA
-    elif 'testConnections' in stack:
-        color = Fore.GREEN
+    elif 'buildImage' in stack:
+        color = Fore.BLUE
     else:
-        color = Fore.YELLOW
+        color = Fore.GREEN
     print(color + "--| " + dbg_message)

@@ -2,82 +2,74 @@
 
 import docker
 import paramiko
-from itertools import combinations
-from collections import defaultdict
+from itertools import permutations
 
 from containeroso import *
 from logger import info
 from test_payload import *
 
-cli = docker.from_env()
+client = docker.from_env()
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-def testNetwork(p):
-    buildImages()
-    createNetwork(p)
-    testConnections(p)
-    destroyNetwork(p["networkId"])
-
-def testConnections(p):
+def testPayload(p, networks, connectedRouterGroups=[]):
     networkId = p["networkId"]
+    buildImage()
+    createNetwork(p)
+    info(f'Testing network {networkId}')
+    # Test remote access
+    testSSH(p)
+    # Test whether we created the correct number of Docker networks
+    numNetworksCreated = len(client.networks.list(filters={"label": networkId}))
+    assert numNetworksCreated == len(networks) 
+    info(f"  Docker networks: {numNetworksCreated} OK")
+    # Test network connections
+    testNetworks(networks, connectedRouterGroups)
+    destroyNetwork(networkId)
 
-    hosts    = [m for m in p["machines"] if m["type"] == 'host']
-    switches = [m for m in p["machines"] if m["type"] == 'switch']
-    routers  = [m for m in p["machines"] if m["type"] == 'router']
-    visitedSwitches = set()
+def testNetworks(networks, connectedRouterGroups):
+    # Test connections between hosts on the same router
+    for networkName, hosts in networks.items():
+        info(f"  Hosts on {networkName}")
+        for (id1, id2) in permutations(hosts, 2):
+            testPair(networkName, id1, id2)
+
+    # Test connections between hosts on different routers 
+    for connectedRouters in connectedRouterGroups:
+        info(f"  Hosts in router group: {connectedRouters}")
+        for routerId in connectedRouters:
+            for connectedRouterId in connectedRouters:
+                if routerId != connectedRouterId:
+                    for id1 in networks[routerId]:
+                        for id2 in networks[connectedRouterId]:
+                            testPair(connectedRouterId, id1, id2)
+
     
-    # Test remote access to each host
-    for host in hosts:
-        port = getSSHPort(host["id"])
-        testSSH(port)
-        info(f'ssh -> {host["id"]} ({port}) OK')
-    # TODO add router-router connections    
-    for router in routers:
-        routerId = router["id"]
-        info(f'Testing hosts on router {routerId}')
-        hostsConnectedToRouter, switchesConnectedToRouter = getHostsConnectedToRouter(hosts, switches+routers, routerId)
-        visitedSwitches |= set(switchesConnectedToRouter)
-        testHostConnections(routerId, hostsConnectedToRouter)
+def testPair(networkName, id1, id2):
+    #assert con1.exec_run(f'nslookup {id2}').exit_code == 0
+    #info(f'    nslookup {id1} -> {id2} OK')
+    con1 = client.containers.get(id1)
+    con2 = client.containers.get(id2)
 
-    for switch in switches:
-        switchId = switch["id"]
-        if switchId not in visitedSwitches:
-            info(f'Testing hosts on switch {switchId}')
-            hostsConnectedToSwitch, switchesConnectedToSwitch = getHostsConnectedToSwitch(hosts, switches, switchId)
-            visitedSwitches |= set(switchesConnectedToSwitch)
-            testHostConnections(switchId, hostsConnectedToSwitch)
+    ip = con2.attrs["NetworkSettings"]["Networks"][networkName]["IPAddress"]
+    assert con1.exec_run(f'ping -c1 {ip}').exit_code == 0
+    info(f'    ping {id1} -> {id2} ({ip}) OK')
 
-def testHostConnections(dockerNetworkId, hosts):
-    for pair in combinations(hosts, 2):
-        testPairConnection(dockerNetworkId, *pair)
-    
-def testPairConnection(dockerNetworkId, id1, id2):
-    nslookup(id1, id2)
-    ping(dockerNetworkId, id1, id2)
-
-def nslookup(id1, id2):
-    con = cli.containers.get(id1)
-    assert con.exec_run(f'nslookup {id2}').exit_code == 0
-    info(f'  nslookup {id1} -> {id2} OK')
-   
-def ping(dockerNetworkId, id1, id2):
-    con = cli.containers.get(id1)
-    con2 = cli.containers.get(id2)
-    ip = con2.attrs["NetworkSettings"]["Networks"][dockerNetworkId]["IPAddress"]
-    assert con.exec_run(f'ping -c1 {ip}').exit_code == 0
-    info(f'  ping {id1} -> {id2} ({ip}) OK')
-
-def testSSH(port):
-    ssh.connect('localhost', port=port, username='virtuoso', password='password')        
-    ssh.close()
+def testSSH(p):
+    for machine in p["machines"]:
+        if machine["type"] == "host":
+            port = getSSHPort(machine["id"])
+            ssh.connect('localhost', port=port, username='virtuoso', password='password')
+            ssh.close()
+            info(f'    ssh -> {machine["id"]} OK')
 
 def clean():
-    for c in cli.containers.list(all=True):
+    for c in client.containers.list(all=True):
         c.remove(force=True)
-    #cli.images.prune(filters={"dangling": False})
-    cli.networks.prune()
+    #client.images.prune(filters={"dangling": False})
+    client.networks.prune()
 
 if __name__ == '__main__':
     clean()
-    testNetwork(p1)
+    testPayload(p3, p3_networks)
+    testPayload(p4, p4_networks, p4_routers)

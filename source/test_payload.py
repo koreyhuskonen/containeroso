@@ -83,3 +83,161 @@ p1 = {
         }
     ]
 }
+
+#           S
+#          / \
+#         H   H 
+p2 = {
+    "networkId": "315086245b044416",
+    "machines": [
+        {   
+            "id": "066855bf97b344d3",
+            "type": "switch",
+            "connectedSwitches": [], 
+            "connectedRouters": []   
+        },  
+        {
+            "id": "65b9fc408ef941cf",
+            "type": "host",
+            "image": "virtuoso",
+            "connectedSwitches": [
+                "066855bf97b344d3"
+            ],  
+            "connectedRouters": []
+        },  
+        {
+            "id": "646c4a0b3a264b09",
+            "type": "host",
+            "image": "virtuoso",
+            "connectedSwitches": [
+                "066855bf97b344d3"
+            ],  
+            "connectedRouters": []
+        }
+    ]
+}
+p2_networks = {"066855bf97b344d3": ["65b9fc408ef941cf", "646c4a0b3a264b09"]}
+
+#           R
+#          / \
+#         S   S 
+#         |   |
+#         H   H
+p3 = {
+    "networkId": "315086245b044416",
+    "machines": [
+        {   
+            "id": "57f02616797a4c3c",
+            "type": "router",
+            "connectedSwitches": [
+                "7196985f7abc4d8d",
+                "2853e785eb974410"
+            ], 
+            "connectedRouters": []   
+        },  
+        {
+            "id": "7196985f7abc4d8d",
+            "type": "switch",
+            "connectedSwitches": [],  
+            "connectedRouters": [
+                "57f02616797a4c3c"
+            ]
+        },  
+        {
+            "id": "e8a63f7c0cc1497a",
+            "type": "host",
+            "image": "virtuoso",
+            "connectedSwitches": [
+                "7196985f7abc4d8d"
+            ],  
+            "connectedRouters": []
+        },
+        {
+            "id": "2853e785eb974410",
+            "type": "switch",
+            "image": "virtuoso",
+            "connectedSwitches": [],  
+            "connectedRouters": [
+                "57f02616797a4c3c"
+            ]
+        },
+        {
+            "id": "84743737379a4e24",
+            "type": "host",
+            "image": "virtuoso",
+            "connectedSwitches": [
+                "2853e785eb974410"
+            ],  
+            "connectedRouters": []
+        }
+    ]
+}
+p3_networks = {"57f02616797a4c3c": ["e8a63f7c0cc1497a", "84743737379a4e24"]}
+
+#         R - R
+#         |   |
+#         S   S 
+#         |   |
+#         H   H
+p4 = {
+    "networkId": "9dff566ee6d241cd",
+    "machines": [
+        {   
+            "id": "c289065c3acb4382",
+            "type": "router",
+            "connectedSwitches": [
+                "4a6836f269044525"
+            ], 
+            "connectedRouters": [
+                "88e713c0a5fc4857"
+            ]   
+        },  
+        {   
+            "id": "88e713c0a5fc4857",
+            "type": "router",
+            "connectedSwitches": [
+                "3f851fcbc60d40e5"
+            ], 
+            "connectedRouters": [
+                "c289065c3acb4382"
+            ]   
+        },  
+        {
+            "id": "4a6836f269044525",
+            "type": "switch",
+            "connectedSwitches": [],  
+            "connectedRouters": [
+               "c289065c3acb4382" 
+            ]
+        },  
+        {
+            "id": "3f851fcbc60d40e5",
+            "type": "switch",
+            "connectedSwitches": [],  
+            "connectedRouters": [
+               "88e713c0a5fc4857" 
+            ]
+        },  
+        {
+            "id": "2d2c35f3970b4908",
+            "type": "host",
+            "image": "virtuoso",
+            "connectedSwitches": [
+                "4a6836f269044525"
+            ],  
+            "connectedRouters": []
+        },
+        {
+            "id": "330792492c994abc",
+            "type": "host",
+            "image": "virtuoso",
+            "connectedSwitches": [
+                "3f851fcbc60d40e5"
+            ],  
+            "connectedRouters": []
+        }
+    ]
+}
+p4_networks = {"c289065c3acb4382": ["2d2c35f3970b4908"],
+               "88e713c0a5fc4857": ["330792492c994abc"]}
+p4_routers = [("c289065c3acb4382", "88e713c0a5fc4857")]
