@@ -6,8 +6,7 @@ from ipaddress import ip_network
 import docker
 client = docker.from_env()
 
-def startContaineroso():
-    # TODO rename this to build images, what it actually does 
+def buildImages():
     info(f'Building image "virtuoso" if it does not already exist')
     client.images.build(path=".", dockerfile="Dockerfile.virtuoso", tag="virtuoso", rm=True)
 
@@ -21,7 +20,7 @@ def createNetwork(n):
     hosts    = [m for m in machines if m["type"] == 'host']
     switches = [m for m in machines if m["type"] == 'switch']
     routers  = [m for m in machines if m["type"] == 'router']
-    HostToRouter = dict()
+    HostToRouter = dict() #hostDefaultGatewayLookup
     visitedSwitches = set()
     
     createVirtualHosts(networkId, hosts)

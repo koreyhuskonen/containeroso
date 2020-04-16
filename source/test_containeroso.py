@@ -14,10 +14,10 @@ ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 def testNetwork(p):
-    startContaineroso()
+    buildImages()
     createNetwork(p)
     testConnections(p)
-    #destroyNetwork(p["networkId"])
+    destroyNetwork(p["networkId"])
 
 def testConnections(p):
     networkId = p["networkId"]
@@ -32,7 +32,7 @@ def testConnections(p):
         port = getSSHPort(host["id"])
         testSSH(port)
         info(f'ssh -> {host["id"]} ({port}) OK')
-    
+    # TODO add router-router connections    
     for router in routers:
         routerId = router["id"]
         info(f'Testing hosts on router {routerId}')
@@ -80,4 +80,4 @@ def clean():
 
 if __name__ == '__main__':
     clean()
-    testNetwork(test_payload1)
+    testNetwork(p1)

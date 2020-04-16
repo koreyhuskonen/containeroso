@@ -2,17 +2,18 @@ import inspect
 from colorama import Fore, Style, init
 init(autoreset=True)
 
-def getParentFunction():
-    return inspect.stack()[2].function
+def getCallStack():
+    stack = [s.function for s in inspect.stack()]
+    return stack
 
 def info(dbg_message):
-    parent = getParentFunction()
-    if parent == 'createNetwork':
+    stack = getCallStack()
+    if 'createNetwork' in stack:
         color = Fore.CYAN
-    elif parent == 'getSSHPort':
-        color = Fore.YELLOW
-    elif parent == 'destroyNetwork':
+    elif 'destroyNetwork' in stack:
         color = Fore.MAGENTA
-    else:
+    elif 'testConnections' in stack:
         color = Fore.GREEN
+    else:
+        color = Fore.YELLOW
     print(color + "--| " + dbg_message)
