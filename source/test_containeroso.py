@@ -12,22 +12,26 @@ client = docker.from_env()
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-def testPayload(p, networks, connectedRouterGroups=[]):
+def testPayload(p, networks, connectedRouterGroups):
     networkId = p["networkId"]
     buildImage()
     createNetwork(p)
     info(f'Testing network {networkId}')
+    # Test whether we created the correct number of Docker networks
+    testNumNetworks(networks, networkId)
     # Test remote access
     testSSH(p)
-    # Test whether we created the correct number of Docker networks
+    # Test network host connections
+    testHostConnections(networks, connectedRouterGroups)
+    # Destroy network
+    destroyNetwork(networkId)
+
+def testNumNetworks(networks, networkId):
     numNetworksCreated = len(client.networks.list(filters={"label": networkId}))
     assert numNetworksCreated == len(networks) 
     info(f"  Docker networks: {numNetworksCreated} OK")
-    # Test network connections
-    testNetworks(networks, connectedRouterGroups)
-    destroyNetwork(networkId)
 
-def testNetworks(networks, connectedRouterGroups):
+def testHostConnections(networks, connectedRouterGroups):
     # Test connections between hosts on the same router
     for networkName, hosts in networks.items():
         info(f"  Hosts on {networkName}")
@@ -71,5 +75,8 @@ def clean():
 
 if __name__ == '__main__':
     clean()
-    testPayload(p3, p3_networks)
-    testPayload(p4, p4_networks, p4_routers)
+    for i in range(1, 4):
+        p = eval(f"p{i}")
+        p_net = eval(f"p{i}_net")
+        p_r = eval(f"p{i}_r")
+        testPayload(p, p_net, p_r)

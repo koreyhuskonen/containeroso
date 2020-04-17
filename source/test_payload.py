@@ -1,243 +1,82 @@
-p1 = {
-    "networkId": "7f67800b1ba54e43a30e05819c4e4eef",
-    "machines": [
-        {
-            "id": "03ae39b630544c23bfeb561306936fd0",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "2dc9f0d22abf4336b8ea3afff3f1e9f3"
-            ],  
-            "connectedRouters": []
-        },  
-        {   
-            "id": "2dc9f0d22abf4336b8ea3afff3f1e9f3",
-            "type": "switch",
-            "connectedSwitches": [
-               "2b80a00325f9402cba1baaf595bf49cd" 
-            ], 
-            "connectedRouters": []   
-        },  
-        {
-            "id": "39c969f69b5149f9ad34415ab24e5924",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "2b80a00325f9402cba1baaf595bf49cd"
-            ],  
-            "connectedRouters": []
-        },  
-        {   
-            "id": "2b80a00325f9402cba1baaf595bf49cd",
-            "type": "switch",
-            "connectedSwitches": [
-                "2dc9f0d22abf4336b8ea3afff3f1e9f3"
-            ], 
-            "connectedRouters": [
-                "060f741fdb2d4f198818d91c8adc4d08"
-            ]   
-        },  
-        {   
-            "id": "fa3bab03f56f4129847ec91dc159f8ca",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "6e2cf29a839b483cbd7ef5e0381c2e51"
-            ],  
-            "connectedRouters": []
-        },  
-        {   
-            "id": "6e2cf29a839b483cbd7ef5e0381c2e51",
-            "type": "switch",
-            "connectedSwitches": [], 
-            "connectedRouters": [
-                "060f741fdb2d4f198818d91c8adc4d08"
-            ]   
-        },
-        {
-            "id": "060f741fdb2d4f198818d91c8adc4d08",
-            "type": "router",
-            "connectedSwitches": [
-                "2b80a00325f9402cba1baaf595bf49cd",
-                "6e2cf29a839b483cbd7ef5e0381c2e51"
-            ],
-            "connectedRouters": []
-        },
-        {
-            "id": "ac7c298c5b66470ba0a0176dad6dfa0d",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [],  
-            "connectedRouters": [
-                "060f741fdb2d4f198818d91c8adc4d08" 
-            ]
-        },  
-        {
-            "id": "16bd4b7040dc44ee8d78fce264f31942",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [],  
-            "connectedRouters": [
-                "060f741fdb2d4f198818d91c8adc4d08" 
-            ]
-        }
-    ]
-}
+from uuid import uuid4
+
+def getId():
+    return uuid4().hex[:16]
+
+def createDevice(deviceType="host"):
+    device = {"id": getId()}
+    device["type"] = deviceType
+    if deviceType == "host":
+        device["image"] = "virtuoso"
+    device["connectedSwitches"] = []
+    device["connectedRouters"] = []
+    return device
+
+def connect(d1, *args):
+    for d2 in args:
+        connectPair(d1, d2)
+        connectPair(d2, d1)
+        
+def connectPair(d1, d2): 
+    if d1["type"] == "switch":
+        d2["connectedSwitches"].append(d1["id"])
+    elif d1["type"] == "router":
+        d2["connectedRouters"].append(d1["id"])
+
+def makePayload(*args):
+    return {"networkId": getId(), "machines": list(args)}
+
+def makeNet(d):
+    return {m[0]["id"]: [h["id"] for h in m[1]] for m in d}
+
+def makeR(r):
+    return [[d["id"] for d in g] for g in r]
 
 #           S
 #          / \
 #         H   H 
-p2 = {
-    "networkId": "315086245b044416",
-    "machines": [
-        {   
-            "id": "066855bf97b344d3",
-            "type": "switch",
-            "connectedSwitches": [], 
-            "connectedRouters": []   
-        },  
-        {
-            "id": "65b9fc408ef941cf",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "066855bf97b344d3"
-            ],  
-            "connectedRouters": []
-        },  
-        {
-            "id": "646c4a0b3a264b09",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "066855bf97b344d3"
-            ],  
-            "connectedRouters": []
-        }
-    ]
-}
-p2_networks = {"066855bf97b344d3": ["65b9fc408ef941cf", "646c4a0b3a264b09"]}
-
+s1 = createDevice("switch")
+h1 = createDevice()
+h2 = createDevice()
+connect(s1, h1, h2)
+p1 = makePayload(s1, h1, h2)
+p1_net = {s1["id"]: [h1["id"], h2["id"]]}
+p1_r = []
+        
 #           R
 #          / \
 #         S   S 
 #         |   |
 #         H   H
-p3 = {
-    "networkId": "315086245b044416",
-    "machines": [
-        {   
-            "id": "57f02616797a4c3c",
-            "type": "router",
-            "connectedSwitches": [
-                "7196985f7abc4d8d",
-                "2853e785eb974410"
-            ], 
-            "connectedRouters": []   
-        },  
-        {
-            "id": "7196985f7abc4d8d",
-            "type": "switch",
-            "connectedSwitches": [],  
-            "connectedRouters": [
-                "57f02616797a4c3c"
-            ]
-        },  
-        {
-            "id": "e8a63f7c0cc1497a",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "7196985f7abc4d8d"
-            ],  
-            "connectedRouters": []
-        },
-        {
-            "id": "2853e785eb974410",
-            "type": "switch",
-            "image": "virtuoso",
-            "connectedSwitches": [],  
-            "connectedRouters": [
-                "57f02616797a4c3c"
-            ]
-        },
-        {
-            "id": "84743737379a4e24",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "2853e785eb974410"
-            ],  
-            "connectedRouters": []
-        }
-    ]
-}
-p3_networks = {"57f02616797a4c3c": ["e8a63f7c0cc1497a", "84743737379a4e24"]}
+r1 = createDevice("router")
+s1 = createDevice("switch")
+s2 = createDevice("switch")
+h1 = createDevice()
+h2 = createDevice()
+connect(r1, s1, s2)
+connect(s1, h1)
+connect(s2, h2)
+p2 = makePayload(r1, s1, s2, h1, h2)
+p2_net = {r1["id"]: [h1["id"], h2["id"]]}
+p2_r = []
 
 #         R - R
 #         |   |
 #         S   S 
 #         |   |
 #         H   H
-p4 = {
-    "networkId": "9dff566ee6d241cd",
-    "machines": [
-        {   
-            "id": "c289065c3acb4382",
-            "type": "router",
-            "connectedSwitches": [
-                "4a6836f269044525"
-            ], 
-            "connectedRouters": [
-                "88e713c0a5fc4857"
-            ]   
-        },  
-        {   
-            "id": "88e713c0a5fc4857",
-            "type": "router",
-            "connectedSwitches": [
-                "3f851fcbc60d40e5"
-            ], 
-            "connectedRouters": [
-                "c289065c3acb4382"
-            ]   
-        },  
-        {
-            "id": "4a6836f269044525",
-            "type": "switch",
-            "connectedSwitches": [],  
-            "connectedRouters": [
-               "c289065c3acb4382" 
-            ]
-        },  
-        {
-            "id": "3f851fcbc60d40e5",
-            "type": "switch",
-            "connectedSwitches": [],  
-            "connectedRouters": [
-               "88e713c0a5fc4857" 
-            ]
-        },  
-        {
-            "id": "2d2c35f3970b4908",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "4a6836f269044525"
-            ],  
-            "connectedRouters": []
-        },
-        {
-            "id": "330792492c994abc",
-            "type": "host",
-            "image": "virtuoso",
-            "connectedSwitches": [
-                "3f851fcbc60d40e5"
-            ],  
-            "connectedRouters": []
-        }
-    ]
-}
-p4_networks = {"c289065c3acb4382": ["2d2c35f3970b4908"],
-               "88e713c0a5fc4857": ["330792492c994abc"]}
-p4_routers = [("c289065c3acb4382", "88e713c0a5fc4857")]
+r1 = createDevice("router")
+r2 = createDevice("router")
+s1 = createDevice("switch")
+s2 = createDevice("switch")
+h1 = createDevice()
+h2 = createDevice()
+connect(r1, r2, s1)
+connect(r2, r1, s2)
+connect(s1, h1)
+connect(s2, h2)
+p3 = makePayload(r1, r2, s1, s2, h1, h2)
+net = ((r1, [h1]), (r2, [h2]))
+p3_net = makeNet(net)
+r = [(r1, r2)]
+p3_r = makeR(r)
