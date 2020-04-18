@@ -75,7 +75,7 @@ def clean():
 
 if __name__ == '__main__':
     clean()
-    for i in range(1, 4):
+    for i in range(5, 7):
         p = eval(f"p{i}")
         p_net = eval(f"p{i}_net")
         p_r = eval(f"p{i}_r")

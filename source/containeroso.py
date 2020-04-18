@@ -27,6 +27,10 @@ def createNetwork(n):
 
     for router in routers:
         createVirtualNetwork(networkId, router["id"])
+        createVirtualGateway(networkId, router["id"])
+
+    for router in routers:
+        configureGateway(router["id"], routers)
 
     for router in routers:
         routerId = router["id"]
@@ -37,8 +41,7 @@ def createNetwork(n):
             if hostId in HostToRouter:
                 raise AppError("Host {hostId} is connected to more than 1 router")
             HostToRouter[hostId] = routerId
-        # Must create the gateway before connecting devices
-        createVirtualGateway(networkId, routers, routerId)
+
         connectHostsToDevice(hostsConnectedToRouter, routerId)
 
     for switch in switches:
@@ -94,13 +97,16 @@ def createVirtualNetwork(networkId, deviceId):
                                   ipam=getIPAM(),
                                   labels={networkId: ""})
 
-def createVirtualGateway(networkId, routers, routerId):
-    gateway = client.containers.run(image="virtuoso",
-                                    name=routerId,
-                                    network=routerId,
-                                    detach=True,
-                                    privileged=True,
-                                    labels={networkId: ""})
+def createVirtualGateway(networkId, routerId):
+    return client.containers.run(image="virtuoso",
+                                 name=routerId,
+                                 network=routerId,
+                                 detach=True,
+                                 privileged=True,
+                                 labels={networkId: ""})
+
+def configureGateway(routerId, routers):
+    gateway = client.containers.get(routerId)
     gateway.exec_run("iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE")
     routersConnectedToThisRouter = getConnectedDevices(routers, routerId, "Routers")
     for i, connectedRouterId in enumerate(routersConnectedToThisRouter[1:]):
