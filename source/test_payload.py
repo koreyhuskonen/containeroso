@@ -133,3 +133,56 @@ p6 = makePayload(s1, s2, h1, h2, h3, h4)
 net = [(s1, [h1, h2, h3, h4])]
 p6_net = makeNet(net)
 p6_r = []
+
+#     H - S - S - R
+#         |   
+#         H   
+r1 = createDevice("router")
+s1 = createDevice("switch")
+s2 = createDevice("switch")
+h1 = createDevice()
+h2 = createDevice()
+connect(s1, s2, h1, h2)
+connect(s2, s1, r1)
+connect(r1, s2)
+p7 = makePayload(r1, s1, s2, h1, h2)
+net = [(r1, [h1, h2])]
+p7_net = makeNet(net)
+p7_r = []
+
+#         R
+#         |
+#         S
+#         |
+#         H - S - H    
+r1 = createDevice("router")
+s1 = createDevice("switch")
+s2 = createDevice("switch")
+h1 = createDevice()
+h2 = createDevice()
+connect(r1, s1)
+connect(s1, r1, h1)
+connect(s2, h1, h2)
+p8 = makePayload(r1, s1, s2, h1, h2)
+net = [(r1, [h1]), (s2, [h1, h2])]
+p8_net = makeNet(net)
+p8_r = []
+
+#         R
+#         |
+#         S   R
+#         |   |
+#         H - S  
+r1 = createDevice("router")
+r2 = createDevice("router")
+s1 = createDevice("switch")
+s2 = createDevice("switch")
+h1 = createDevice()
+connect(r1, s1)
+connect(s1, r1, h1)
+connect(s2, r2, h1)
+connect(r2, s2)
+p9 = makePayload(r1, r2, s1, s2, h1)
+net = [(r1, [h1]), (r2, [h1])]
+p9_net = makeNet(net)
+p9_r = []

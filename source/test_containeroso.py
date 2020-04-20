@@ -50,8 +50,6 @@ def testHostConnections(networks, connectedRouterGroups):
 
     
 def testPair(networkName, id1, id2):
-    #assert con1.exec_run(f'nslookup {id2}').exit_code == 0
-    #info(f'    nslookup {id1} -> {id2} OK')
     con1 = client.containers.get(id1)
     con2 = client.containers.get(id2)
 
@@ -75,7 +73,7 @@ def clean():
 
 if __name__ == '__main__':
     clean()
-    for i in range(5, 7):
+    for i in range(7, 8):
         p = eval(f"p{i}")
         p_net = eval(f"p{i}_net")
         p_r = eval(f"p{i}_r")

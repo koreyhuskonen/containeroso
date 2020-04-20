@@ -39,7 +39,7 @@ def createNetwork(n):
         visitedSwitches |= set(switchesConnectedToRouter)
         for hostId in hostsConnectedToRouter:
             if hostId in HostToRouter:
-                raise AppError("Host {hostId} is connected to more than 1 router")
+                raise NetworkError(f"Host {hostId} is connected to more than 1 router")
             HostToRouter[hostId] = routerId
 
         connectHostsToDevice(hostsConnectedToRouter, routerId)
@@ -109,11 +109,11 @@ def configureGateway(routerId, routers):
     gateway = client.containers.get(routerId)
     gateway.exec_run("iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE")
     routersConnectedToThisRouter = getConnectedDevices(routers, routerId, "Routers")
-    for i, connectedRouterId in enumerate(routersConnectedToThisRouter[1:]):
+    for i, connectedRouterId in enumerate(routersConnectedToThisRouter[1:], start=1):
         net = client.networks.get(connectedRouterId)
         net.connect(gateway)
-        gateway.exec_run(f"iptables -A FORWARD -i eth{i+1} -o eth0 -j ACCEPT")
-        gateway.exec_run(f"iptables -A FORWARD -i eth0 -o eth{i+1} -m state --state RELATED,ESTABLISHED -j ACCEPT")
+        gateway.exec_run(f"iptables -A FORWARD -i eth{i} -o eth0 -j ACCEPT")
+        gateway.exec_run(f"iptables -A FORWARD -i eth0 -o eth{i} -m state --state RELATED,ESTABLISHED -j ACCEPT")
 
 def createVirtualHosts(networkId, hosts):
     for host in hosts:
@@ -170,7 +170,7 @@ def getSSHPort(machineId):
     hostPort = ports['22/tcp'][0]['HostPort']
     return hostPort
 
-class AppError(Exception):
+class NetworkError(Exception):
     def __init__(self, message):
         self.message = message
 
