@@ -14,8 +14,8 @@ docker run -t -p 5000:5000 -v /var/run/docker.sock:/var/run/docker.sock containe
 ## API Documentation
 **Route**|**Method**|**Data**|**Description**
 :-----|:-----:|:-----:|:-----:
-/api/create-network|POST|See examples|Creates a virtual network
-/api/delete-network|POST|{"networkId": "123-456-789-xyz"}|Deletes a virtual network
+/api/create-network|POST|See examples|Create a virtual network
+/api/delete-network|DELETE|{"networkId": "123-456-789-xyz"}|Delete a virtual network
 /api/get-port|POST|{"machineId": "456-abc-rty-789"}|Get the port you need to SSH into the machine
 /api/status|GET| |Check whether the server is running
 ## Examples
