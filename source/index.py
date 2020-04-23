@@ -1,7 +1,9 @@
 from flask import Flask, Response, request, jsonify
+from flask_cors import CORS
 from containeroso import *
 
 app = Flask(__name__)
+CORS(app)
 
 @app.route('/api/create-network', methods=['POST'])
 def create_network():
