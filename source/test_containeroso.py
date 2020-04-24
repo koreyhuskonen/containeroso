@@ -14,7 +14,6 @@ ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 def testPayload(p, networks, connectedRouterGroups):
     networkId = p["networkId"]
-    buildImage()
     createNetwork(p)
     info(f'Testing network {networkId}')
     # Test whether we created the correct number of Docker networks

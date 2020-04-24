@@ -12,8 +12,9 @@ def buildImage(name="virtuoso"):
 
 def createNetwork(n):
     networkId = n["networkId"]
-    info(f"Removing any conflicting machines")
+    info(f"Getting ready to create network")
     destroyNetwork(networkId)
+    buildImage()
     info(f'Creating network {networkId}')
     
     
