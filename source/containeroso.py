@@ -12,7 +12,10 @@ def buildImage(name="virtuoso"):
 
 def createNetwork(n):
     networkId = n["networkId"]
+    info(f"Removing any conflicting machines")
+    destroyNetwork(networkId)
     info(f'Creating network {networkId}')
+    
     
     hosts    = [m for m in n["machines"] if m["type"] == 'host']
     switches = [m for m in n["machines"] if m["type"] == 'switch']
@@ -127,7 +130,7 @@ def createVirtualHost(networkId, host):
     
     if len(host["connectedSwitches"] + host["connectedRouters"]) > 0:
         # Disconnect from Docker default bridge
-        client.networks.list(names="bridge")[0].disconnect(con)
+        client.networks.get('bridge').disconnect(con)
 
 subnet = ip_network('192.168.0.0/16').subnets(new_prefix=24)
 
