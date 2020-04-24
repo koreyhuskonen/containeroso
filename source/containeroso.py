@@ -13,17 +13,15 @@ def buildImage(name="virtuoso"):
 def createNetwork(n):
     networkId = n["networkId"]
     info(f'Creating network {networkId}')
-
-    machines = n["machines"]
-    info('Creating machines')
     
-    hosts    = [m for m in machines if m["type"] == 'host']
-    switches = [m for m in machines if m["type"] == 'switch']
-    routers  = [m for m in machines if m["type"] == 'router']
+    hosts    = [m for m in n["machines"] if m["type"] == 'host']
+    switches = [m for m in n["machines"] if m["type"] == 'switch']
+    routers  = [m for m in n["machines"] if m["type"] == 'router']
     HostToRouter = dict() #hostDefaultGatewayLookup
     visitedSwitches = set()
     
-    createVirtualHosts(networkId, hosts)
+    for host in hosts:
+        createVirtualHost(networkId, host)
 
     for router in routers:
         createVirtualNetwork(networkId, router["id"])
@@ -63,9 +61,13 @@ def restartHostsAndSetDefaultGateway(hosts, HostToRouter):
         if hostId in HostToRouter:
             routerId = HostToRouter[hostId]
             gateway = client.containers.get(routerId)
-            gatewayIP = gateway.attrs["NetworkSettings"]["Networks"][routerId]["IPAddress"]
-            con.exec_run("ip route del default")
-            con.exec_run(f"ip route add default via {gatewayIP}")
+            networks = gateway.attrs["NetworkSettings"]["Networks"]
+            gatewayAddr = networks[routerId]["IPAddress"]
+            for networkId in networks:
+                if networkId != routerId:
+                    net = client.networks.get(networkId)
+                    subnet = net.attrs["IPAM"]["Config"][0]["Subnet"]
+                    con.exec_run(f"ip route add {subnet} via {gatewayAddr}")
 
 def connectHostsToDevice(hostIds, deviceId):
     net = client.networks.get(deviceId)
@@ -114,10 +116,6 @@ def configureGateway(routerId, routers):
         net.connect(gateway)
         gateway.exec_run(f"iptables -A FORWARD -i eth{i} -o eth0 -j ACCEPT")
         gateway.exec_run(f"iptables -A FORWARD -i eth0 -o eth{i} -m state --state RELATED,ESTABLISHED -j ACCEPT")
-
-def createVirtualHosts(networkId, hosts):
-    for host in hosts:
-        createVirtualHost(networkId, host)
 
 def createVirtualHost(networkId, host):
     con = client.containers.run(image=host["image"],
