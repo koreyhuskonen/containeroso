@@ -10,4 +10,4 @@ COPY /source .
 
 EXPOSE 5000
 
-CMD [ "python", "./index.py" ]
+CMD [ "./start.sh" ]
