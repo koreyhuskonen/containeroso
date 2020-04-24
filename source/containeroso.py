@@ -21,7 +21,7 @@ def createNetwork(n):
     hosts    = [m for m in n["machines"] if m["type"] == 'host']
     switches = [m for m in n["machines"] if m["type"] == 'switch']
     routers  = [m for m in n["machines"] if m["type"] == 'router']
-    HostToRouter = dict() #hostDefaultGatewayLookup
+    HostToRouter = dict() 
     visitedSwitches = set()
     
     for host in hosts:
@@ -56,6 +56,7 @@ def createNetwork(n):
             connectHostsToDevice(hostsConnectedToSwitch, switchId)
 
     restartHostsAndSetDefaultGateway(hosts, HostToRouter)
+    info("Network created")
 
 def restartHostsAndSetDefaultGateway(hosts, HostToRouter):
     for host in hosts:
