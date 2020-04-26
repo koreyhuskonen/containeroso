@@ -8,7 +8,9 @@ python:
 
 install:
   - pip install -r requirements.txt
-  - pip install paramiko
+  - pip install paramiko coverage coveralls
 
 script:
-  - cd source && python test_containeroso.py
+  - cd source && coverage run --source=. test_containeroso.py
+
+after_success: coveralls

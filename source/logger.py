@@ -8,12 +8,12 @@ def getCallStack():
 
 def info(dbg_message):
     stack = getCallStack()
-    if 'createNetwork' in stack:
+    if 'buildImage' in stack:
+        color = Fore.BLUE
+    elif 'createNetwork' in stack:
         color = Fore.CYAN
     elif 'destroyNetwork' in stack:
         color = Fore.MAGENTA
-    elif 'buildImage' in stack:
-        color = Fore.BLUE
     else:
         color = Fore.GREEN
     print(color + "--| " + dbg_message)
