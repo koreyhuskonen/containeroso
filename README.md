@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/koreyhuskonen/containeroso.svg?branch=master)](https://travis-ci.org/koreyhuskonen/containeroso)
+[![Coverage Status](https://coveralls.io/repos/github/koreyhuskonen/containeroso/badge.svg)](https://coveralls.io/github/koreyhuskonen/containeroso)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blueviolet.svg)](https://opensource.org/licenses/MIT)
 
 # Containeroso 
