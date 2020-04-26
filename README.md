@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/koreyhuskonen/containeroso.svg?branch=master)](https://travis-ci.org/koreyhuskonen/containeroso)
+[![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
 
 # Containeroso 
 Containeroso is a Virtual Network Creation Engine (VNCE) that highly leverages Docker to emulate devices. With Containeroso, you can instantly spin up a lightweight virtual network according to a user-defined specification. Containeroso is meant to be used as a component of [Virtuoso](https://github.com/Samwisebuze/senior-design), a platform that allows you to create virtual networks simply by dragging and dropping devices onto a network diagram, all from a web browser. 
