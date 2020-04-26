@@ -11,4 +11,4 @@ install:
   - pip install paramiko
 
 script:
-  - python source/test_containeroso.py
+  - cd source && python test_containeroso.py
